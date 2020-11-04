@@ -59,8 +59,8 @@ public class Pair<A, B> {
         else return fst.hashCode() * 17 + snd.hashCode();
     }
 
-    public static <A,B> com.sun.tools.javac.util.Pair<A,B> of(A a, B b) {
-        return new com.sun.tools.javac.util.Pair<A,B>(a,b);
+    public static <A,B> Pair<A,B> of(A a, B b) {
+        return new Pair<A,B>(a,b);
     }
 }
 
