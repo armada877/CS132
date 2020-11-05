@@ -12,12 +12,13 @@ public class SymbolTable {
 
     public List<TypeContainer> classTable;
     public List<Pair<String, String>> linksets;
+    public Map<String, String> linksets_map;
 
     public Map<Pair<String, String>, Pair<List<Pair<String, TypeContainer>>, TypeContainer>> methodTypes;
     //                id  ,  id_M            List of Params               ->   return type
     public String currentClass;
     public String currentMethod;
-
+    public String parent;
 
     public SymbolTable() {
         allTables = new HashMap<>();
@@ -26,6 +27,7 @@ public class SymbolTable {
         fields = new HashMap<>();
         methodTypes = new HashMap<>();
         linksets = new ArrayList<>();
+        linksets_map = new HashMap<>();
     }
 
     // classname helper function

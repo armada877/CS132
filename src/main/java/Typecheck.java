@@ -11,7 +11,7 @@ public class Typecheck {
         try {
             InputStream in = System.in;
             //InputStream in = new FileInputStream("testcases/hw2/basic.java");
-            //InputStream in = new FileInputStream("testcases/hw2/TreeVisitor.java");
+            //InputStream in = new FileInputStream("testcases/hw2/TreeVisitor-error.java");
             Node root = new MiniJavaParser(in).Goal();
             MyVisitor visitor = new MyVisitor();
             SymbolVisitor symbolVisitor = new SymbolVisitor();

@@ -96,21 +96,24 @@ public class SymbolVisitor extends GJDepthFirst<String, SymbolTable> {
         if (argu.classTable.contains(classType)) {
             // Cannot declare more than one class with the same name
             System.out.println("Type error");
-            System.exit(1);
+            System.exit(0);
         }
         argu.classTable.add(classType);
         n.f1.accept(this, argu);
 
         n.f2.accept(this, argu);
 
+        argu.currentClass = n.f1.f0.tokenImage;
+        argu.currentTable = new HashMap();
+
         // parent class
         n.f3.accept(this, argu);
+        argu.linksets_map.put(argu.currentClass, n.f3.f0.tokenImage);
+        argu.parent = n.f3.f0.tokenImage;
 
         n.f4.accept(this, argu);
 
         // Setup Global table
-        argu.currentClass = n.f1.f0.tokenImage;
-        argu.currentTable = new HashMap();
         argu.linkset(n);
 
         // Add var declarations to field
@@ -124,6 +127,29 @@ public class SymbolVisitor extends GJDepthFirst<String, SymbolTable> {
         n.f4.accept(this, argu);
 
         n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
+
+        // add all methods from parent classes not declared and check for acyclicity
+        String currentParent = argu.parent;
+        for (Pair<String, String> methodDec : argu.methodTypes.keySet()) {
+            if (methodDec.fst == currentParent) {
+                if (!argu.methodTypes.containsKey(new Pair<>(argu.currentClass, methodDec.snd))) {
+                    argu.methodTypes.put(new Pair<>(argu.currentClass, methodDec.snd), argu.methodTypes.get(methodDec));
+                }
+            }
+        }
+        while (currentParent != "") {
+            if (argu.linksets_map.containsKey(currentParent)) {
+                currentParent = argu.linksets_map.get(currentParent);
+            } else {
+                currentParent = "";
+            }
+            // acyclicity check
+            if (currentParent == argu.currentClass) {
+                System.out.println("Type error");
+                System.exit(0);
+            }
+        }
 
         argu.currentClass = null;
 
@@ -174,9 +200,40 @@ public class SymbolVisitor extends GJDepthFirst<String, SymbolTable> {
         if (argu.allTables.get(argu.currentClass).containsKey(argu.currentMethod)) {
             // Type Error, function overloaded
             System.out.println("Type error");
-            System.exit(1);
+            System.exit(0);
         }
         argu.allTables.get(argu.currentClass).put(argu.currentMethod, argu.currentTable);
+
+        if (argu.linksets_map.containsKey(argu.currentClass)) {
+            String parentClass = argu.linksets_map.get(argu.currentClass);
+            Pair<String, String> parentMethod = new Pair<>(n.f2.f0.tokenImage, parentClass);
+            if (argu.methodTypes.containsKey(parentMethod)) { // method exists in parent
+                // check return type matches
+                if(!argu.methodTypes.get(parentMethod).snd.equals(methodType.snd)) {
+                    System.out.println("Type error");
+                    System.exit(0);
+                }
+                // check params match
+                int count = 0;
+                for (Pair<String, TypeContainer> param : argu.methodTypes.get(parentMethod).fst) {
+                    Pair<String, TypeContainer> current_param = methodType.fst.get(count);
+                    // parameter name
+                    if (current_param.fst != param.fst) {
+                        System.out.println("Type error");
+                        System.exit(0);
+                    }
+
+                    // parameter type
+                    if (!current_param.snd.equals(param.snd)) {
+                        System.out.println("Type error");
+                        System.exit(0);
+                    }
+                }
+
+                // Add all non-declared parent methods to methodTypes
+            }
+
+        }
 
         // Statements (do nothing in symbol visitor)
         n.f8.accept(this, argu);

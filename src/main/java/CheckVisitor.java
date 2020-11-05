@@ -51,6 +51,18 @@ public class CheckVisitor extends GJDepthFirst<TypeContainer, SymbolTable> {
         return null;
     }
 
+    @Override
+    public TypeContainer visit(ClassExtendsDeclaration n, SymbolTable argu) {
+        n.f0.accept(this, argu);
+
+        // set current class to choose scope
+        argu.currentClass = n.f1.f0.tokenImage;
+
+        n.f6.accept(this, argu);
+        argu.currentClass = null;
+        return null;
+    }
+
     /*
         f0 - "public"
         f1 - Type
@@ -119,8 +131,8 @@ public class CheckVisitor extends GJDepthFirst<TypeContainer, SymbolTable> {
             typeContainer = argu.currentTable.get(targetVar);
         } else if (argu.fields.get(argu.currentClass).containsKey(targetVar)) {
             typeContainer = argu.fields.get(argu.currentClass).get(targetVar);
-        // else if parent class has it
         } else {
+
             System.out.println("Type error");
             System.exit(0);
         }
@@ -143,6 +155,31 @@ public class CheckVisitor extends GJDepthFirst<TypeContainer, SymbolTable> {
     @Override
     public TypeContainer visit(Expression n, SymbolTable argu) {
         return n.f0.accept(this, argu);
+    }
+
+    @Override
+    public TypeContainer visit(ArrayAssignmentStatement n, SymbolTable argu) {
+        TypeContainer tc = null;
+
+        tc = n.f0.accept(this, argu);
+        if (tc.type != TypeContainer.Type.INTARR) {
+            System.out.println("Type error");
+            System.exit(0);
+        }
+
+        tc = n.f2.accept(this, argu);
+        if (tc.type != TypeContainer.Type.INT) {
+            System.out.println("Type error");
+            System.exit(0);
+        }
+
+        tc = n.f5.accept(this, argu);
+        if (tc.type != TypeContainer.Type.INT) {
+            System.out.println("Type error");
+            System.exit(0);
+        }
+
+        return null;
     }
 
     @Override
@@ -261,6 +298,7 @@ public class CheckVisitor extends GJDepthFirst<TypeContainer, SymbolTable> {
         return b;
     }
 
+
     @Override
     public TypeContainer visit(ArrayLength n, SymbolTable argu) {
         TypeContainer a = n.f0.accept(this, argu);
@@ -327,8 +365,99 @@ public class CheckVisitor extends GJDepthFirst<TypeContainer, SymbolTable> {
         List<Pair<String, TypeContainer>> params = argu.methodTypes.get(caller_method).fst;
         TypeContainer returnType = argu.methodTypes.get(new Pair<>(caller.typeName, method)).snd;
 
-        //TODO: Check Params
+        if (n.f4.node instanceof  ExpressionList) {
+            ExpressionList el = (ExpressionList) n.f4.node;
+            int numParams = 1 + el.f1.nodes.size();
+            if (numParams != params.size()) {
+                System.out.println("Type error");
+                System.exit(0);
+            }
+            TypeContainer tc = el.f0.accept(this, argu);
+            if (!tc.equals(params.get(0).snd)) {
+                // check for subtype
+                boolean subtype = false;
+                if (params.get(0).snd.type == TypeContainer.Type.OBJ && argu.linksets_map.containsKey(tc.typeName)) {
+                    String parent = argu.linksets_map.get(tc.typeName);
+                    while (parent != "") {
+                        if (parent == params.get(0).snd.typeName) {
+                            // we're good
+                            subtype = true;
+                            break;
+                        } else {
+                            parent = argu.linksets_map.get(parent);
+                        }
+                    }
+                }
+                if (!subtype) {
+                    System.out.println("Type error");
+                    System.exit(0);
+                }
+            }
+            int counter = 1;
+            for (Node node : el.f1.nodes) {
+                tc = node.accept(this, argu);
+                if (!tc.equals(params.get(counter).snd)) {
+                    // check for subtype
+                    boolean subtype = false;
+                    if (params.get(counter).snd.type == TypeContainer.Type.OBJ && argu.linksets_map.containsKey(tc.typeName)) {
+                        String parent = argu.linksets_map.get(tc.typeName);
+                        while (parent != "") {
+                            if (parent == params.get(counter).snd.typeName) {
+                                // we're good
+                                subtype = true;
+                                break;
+                            } else {
+                                parent = argu.linksets_map.get(parent);
+                            }
+                        }
+                    }
+                    if (!subtype) {
+                        System.out.println("Type error");
+                        System.exit(0);
+                    }
+                }
+                counter += 1;
+            }
+        }
 
         return returnType;
+    }
+
+    @Override
+    public TypeContainer visit(ExpressionRest n, SymbolTable argu) {
+        return n.f1.accept(this, argu);
+    }
+
+    @Override
+    public TypeContainer visit(PrintStatement n, SymbolTable argu) {
+        TypeContainer tc = new TypeContainer(2, "");
+        if (!n.f2.accept(this, argu).equals(tc)) {
+            System.out.println("Type error");
+            System.exit(0);
+        }
+        return null;
+    }
+
+    @Override
+    public TypeContainer visit(WhileStatement n, SymbolTable argu) {
+        TypeContainer conditional = n.f2.accept(this, argu);
+        if (!conditional.type.equals(TypeContainer.Type.BOOL)) {
+            System.out.println("Type error");
+            System.exit(0);
+        }
+        n.f4.accept(this, argu);
+        return null;
+    }
+
+    @Override
+    public TypeContainer visit(IfStatement n, SymbolTable argu) {
+        TypeContainer conditional = n.f2.accept(this, argu);
+        if (!conditional.type.equals(TypeContainer.Type.BOOL)) {
+            System.out.println("Type error");
+            System.exit(0);
+        }
+        n.f4.accept(this, argu);
+        n.f6.accept(this, argu);
+        return null;
     }
 }
