@@ -1,3 +1,4 @@
+package Typecheck;
 
 import cs132.minijava.syntaxtree.*;
 import cs132.minijava.visitor.GJDepthFirst;

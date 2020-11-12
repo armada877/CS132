@@ -1,4 +1,4 @@
-/*
+package Typecheck;/*
  * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -43,7 +43,7 @@ public class Pair<A, B> {
     }
 
     public String toString() {
-        return "Pair[" + fst + "," + snd + "]";
+        return "Typecheck.Pair[" + fst + "," + snd + "]";
     }
 
     public boolean equals(Object other) {

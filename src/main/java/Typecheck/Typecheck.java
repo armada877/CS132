@@ -1,9 +1,9 @@
+package Typecheck;
+
 import cs132.minijava.MiniJavaParser;
 import cs132.minijava.ParseException;
 import cs132.minijava.syntaxtree.Node;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 
 public class Typecheck {

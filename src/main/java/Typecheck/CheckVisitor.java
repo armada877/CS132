@@ -1,8 +1,8 @@
+package Typecheck;
+
 import cs132.minijava.syntaxtree.*;
 import cs132.minijava.visitor.GJDepthFirst;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public class CheckVisitor extends GJDepthFirst<TypeContainer, SymbolTable> {

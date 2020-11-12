@@ -1,3 +1,5 @@
+package Parse;
+
 import java.util.*;
 
 public class Parse {
@@ -55,7 +57,7 @@ public class Parse {
                 String next = st.nextToken();
                 if (!TERMINALS.contains(next)){
                     if (!next.trim().isEmpty()) {
-                        System.out.println("Parse error");
+                        System.out.println("Parse.Parse error");
                         return;
                     }
                 } else {
@@ -73,14 +75,14 @@ public class Parse {
         //System.out.println(tokens);
 
         // PARSER
-        // Parse tokens
+        // Parse.Parse tokens
         Parser parser = new Parser(tokens);
         int out = parser.parse();
 
         if (out == 0) {
             System.out.println("Program parsed successfully");
         } else {
-            System.out.println("Parse error");
+            System.out.println("Parse.Parse error");
         }
     }
 

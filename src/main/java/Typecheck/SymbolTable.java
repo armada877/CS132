@@ -1,3 +1,5 @@
+package Typecheck;
+
 import cs132.minijava.syntaxtree.*;
 
 import java.util.*;
@@ -165,7 +167,7 @@ public class SymbolTable {
         return typeDec;
     }
 //
-//    public List<Pair<String, String>> fields (ClassExtendsDeclaration ced) {
+//    public List<Typecheck.Pair<String, String>> fields (ClassExtendsDeclaration ced) {
 //
 //    }
 }
