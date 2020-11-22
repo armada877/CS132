@@ -12,12 +12,19 @@ import java.util.List;
 
 public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     private int k;
+    public ArrayList<cs132.minijava.syntaxtree.Identifier> parameters;
+    public ArrayList<cs132.minijava.syntaxtree.Identifier> localVars;
     public ArrayList<FunctionDecl> functionDecls;
 
-    public TranslateVisitor() {
+    public MethodFieldTable methodFieldTable;
+
+    public String currentClass;
+
+    public TranslateVisitor(MethodFieldTable m) {
         super();
         k = 0;
         functionDecls = new ArrayList<>();
+        methodFieldTable = m;
     }
 
     @Override
@@ -31,9 +38,12 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         Instruction initializeRetVal = new Move_Id_Integer(returnId, 0);
         instructions.add(initializeRetVal);
 
-        // TODO: Visit java variable decl and translate
+        List<Instruction> variables = n.f14.accept(this);
         List<Instruction> statements = n.f15.accept(this);
-        instructions.addAll(statements);
+        if (!(variables == null))
+            instructions.addAll(variables);
+        if (!(statements == null))
+            instructions.addAll(statements);
 
         Block block = new Block(instructions, returnId);
 
@@ -46,6 +56,47 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
         functionDecls.add(mainFunc);
         return null;
+    }
+
+    @Override
+    public List visit(ClassDeclaration n) {
+        currentClass = n.f1.f0.tokenImage;
+
+        n.f4.accept(this);
+
+        return null;
+    }
+
+    @Override
+    public List visit(MethodDeclaration n) {
+        return super.visit(n);
+    }
+
+    @Override
+    public List visit(AllocationExpression n) {
+        int myK = k;
+        Identifier objectPointer = new Identifier("w"+k);
+        k += 1;
+        String classType = n.f1.f0.tokenImage;
+        ObjectTable objectTable = methodFieldTable.allObjects.get(classType);
+        List<Instruction> instructions = new ArrayList<>();
+
+        Identifier allocSize = new Identifier("w"+k);
+        k += 1;
+
+        int objectSize = 4 + (objectTable.fields.size() * 4); //Method table pointer + 4 * size of fields
+
+        instructions.add(new Move_Id_Integer(allocSize, objectSize));
+        instructions.add(new Alloc(objectPointer, allocSize));
+
+        // Create method table
+        for (String method : objectTable.methodTable) {
+
+        }
+
+        // Create fields
+
+        //
     }
 
     @Override
@@ -94,6 +145,10 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         k += 1;
         Label endLabelOutOfBounds = new Label("end_l" + k);
         k += 1;
+        Label nullLabel = new Label("null_l"+k);
+        k += 1;
+        Label endNullLabel = new Label("end_l" + k);
+        k += 1;
 
         // declare constants
         instructions.add(new Move_Id_Integer(fourConst, 4));
@@ -106,6 +161,13 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         check index < arrLength
         arrPointer = array + 4
          */
+        // null check
+        instructions.add(new IfGoto(array, nullLabel));
+        instructions.add(new Goto(endNullLabel));
+        instructions.add(new LabelInstr(nullLabel));
+        instructions.add(new ErrorMessage("\"null pointer\""));
+        instructions.add(new LabelInstr(endNullLabel));
+
         instructions.add(new Load(arrLength, array, 0));
 
         // negative Check
@@ -218,6 +280,10 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         k += 1;
         Label endLabelOutOfBounds = new Label("end_l" + k);
         k += 1;
+        Label nullLabel = new Label("null_l"+k);
+        k += 1;
+        Label endNullLabel = new Label("endNullLabel_l"+k);
+        k += 1;
 
 
         instructions.addAll(indexInstructions);
@@ -226,6 +292,13 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         instructions.add(new Move_Id_Integer(fourConst, 4));
         instructions.add(new Move_Id_Integer(oneConst, 1));
         instructions.add(new Move_Id_Integer(zeroConst, 0));
+
+        // null check
+        instructions.add(new IfGoto(arrayId, nullLabel));
+        instructions.add(new Goto(endNullLabel));
+        instructions.add(new LabelInstr(nullLabel));
+        instructions.add(new ErrorMessage("\"null pointer\""));
+        instructions.add(new LabelInstr(endNullLabel));
 
         instructions.add(new Load(arrLength, arrayId, 0));
 
@@ -261,6 +334,17 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
         Identifier arrayLength = new Identifier("w"+myK);
         Identifier array = new Identifier("w" + (myK + 1));
+        Label nullLabel = new Label("null_l"+k);
+        k += 1;
+        Label endNullLabel = new Label("endNull_l" + k);
+        k += 1;
+
+        // null check
+        instructions.add(new IfGoto(array, nullLabel));
+        instructions.add(new Goto(endNullLabel));
+        instructions.add(new LabelInstr(nullLabel));
+        instructions.add(new ErrorMessage("\"null pointer\""));
+        instructions.add(new LabelInstr(endNullLabel));
 
         instructions.add(new Load(arrayLength, array, 0));
 
@@ -280,6 +364,16 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         instructions.add(assignInstruction);
         instructions.add(printInstruction);
 
+        return instructions;
+    }
+
+    @Override
+    public List visit(VarDeclaration n) {
+        String varName = n.f1.f0.tokenImage;
+        localVars.add(n.f1);
+        List<Instruction> instructions = new ArrayList<>();
+        Identifier sparrowVar = new Identifier(varName);
+        instructions.add(new Move_Id_Integer(sparrowVar, 0));
         return instructions;
     }
 
@@ -491,13 +585,18 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     @Override
     public List visit(cs132.minijava.syntaxtree.Identifier n) {
         String varName = n.f0.tokenImage;
-        Identifier identifier = new Identifier("w"+k);
-        k += 1;
-        Instruction initializeVar = new Move_Id_Id(identifier, new Identifier(varName));
-
         List instructionList = new ArrayList();
-        instructionList.add(initializeVar);
 
+        if (localVars.contains(n)) {
+            Identifier identifier = new Identifier("w" + k);
+            k += 1;
+            Instruction initializeVar = new Move_Id_Id(identifier, new Identifier(varName));
+            instructionList.add(initializeVar);
+        } else if (parameters.contains(n)) {
+            // it's a parameter
+        } else {
+            // it's a field
+        }
         return instructionList;
     }
 
@@ -541,6 +640,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
             return _ret;
         }
     }
+
 
 
 }
