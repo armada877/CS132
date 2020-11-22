@@ -12,13 +12,16 @@ import java.util.List;
 
 public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     private int k;
-    public ArrayList<cs132.minijava.syntaxtree.Identifier> parameters;
-    public ArrayList<cs132.minijava.syntaxtree.Identifier> localVars;
+    public ArrayList<String> parameters;
+    public ArrayList<String> localVars;
     public ArrayList<FunctionDecl> functionDecls;
 
     public MethodFieldTable methodFieldTable;
 
+    public List<Identifier> expressionListTracker;
+
     public String currentClass;
+    public String exprType;
 
     public TranslateVisitor(MethodFieldTable m) {
         super();
@@ -29,6 +32,8 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
     @Override
     public List visit(MainClass n) {
+        localVars = new ArrayList<>();
+        parameters = new ArrayList<>();
         k = 0;
         FunctionName funcName = new FunctionName("Main");
         List<Identifier> params = new ArrayList<>();
@@ -68,8 +73,76 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     }
 
     @Override
+    public List visit(FormalParameterList n) {
+        List<Identifier> params = new ArrayList<>();
+        Identifier firstParam = new Identifier(n.f0.f1.f0.tokenImage);
+        params.add(firstParam);
+        parameters.add(n.f0.f1.f0.tokenImage);
+        if (n.f1.present()) {
+            params.addAll(n.f1.accept(this));
+        }
+
+        return params;
+    }
+
+    @Override
+    public List visit(FormalParameterRest n) {
+        return n.f1.accept(this);
+    }
+
+    @Override
+    public List visit(FormalParameter n) {
+        List<Identifier> params = new ArrayList<>();
+        Identifier thisParam = new Identifier(n.f1.f0.tokenImage);
+        params.add(thisParam);
+        parameters.add(n.f1.f0.tokenImage);
+        return params;
+    }
+
+    @Override
     public List visit(MethodDeclaration n) {
-        return super.visit(n);
+        localVars = new ArrayList<>();
+        parameters = new ArrayList<>();
+        k = 0;
+        FunctionName funcName = new FunctionName(currentClass + n.f2.f0.tokenImage);
+        List<Identifier> params = new ArrayList<>();
+        List<Instruction> instructions = new ArrayList<>();
+
+        Identifier currObj = new Identifier("this");
+        params.add(currObj);
+
+        // Accept Parameters
+        if (n.f4.present()) {
+            params.addAll(n.f4.accept(this));
+        }
+
+        // Accept variables
+        List<Instruction> variables = n.f7.accept(this);
+
+        // Accept Statements
+        List<Instruction> statements = n.f8.accept(this);
+        if (!(variables == null))
+            instructions.addAll(variables);
+        if (!(statements == null))
+            instructions.addAll(statements);
+
+        // Accept ReturnId
+        int myK = k;
+        instructions.addAll(n.f10.accept(this));
+
+        Identifier returnId = new Identifier("w"+myK);
+
+        Block block = new Block(instructions, returnId);
+
+        for (Instruction i : block.instructions) {
+            i.parent = block;
+        }
+
+        FunctionDecl function = new FunctionDecl(funcName, params, block);
+        block.parent = function;
+
+        functionDecls.add(function);
+        return null;
     }
 
     @Override
@@ -78,6 +151,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         Identifier objectPointer = new Identifier("w"+k);
         k += 1;
         String classType = n.f1.f0.tokenImage;
+
         ObjectTable objectTable = methodFieldTable.allObjects.get(classType);
         List<Instruction> instructions = new ArrayList<>();
 
@@ -90,13 +164,68 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         instructions.add(new Alloc(objectPointer, allocSize));
 
         // Create method table
-        for (String method : objectTable.methodTable) {
+        Identifier virtualMethodTable = new Identifier("vmt"+k);
+        k += 1;
+        int vmtSize = 4 * objectTable.methodTable.size();
 
+        instructions.add(new Move_Id_Integer(allocSize, vmtSize));
+        instructions.add(new Alloc(virtualMethodTable, allocSize));
+        int offset = 0;
+        Identifier funcId = new Identifier("w"+k);
+        k += 1;
+        for (String method : objectTable.methodTable) {
+            FunctionName func = new FunctionName(method);
+            instructions.add(new Move_Id_FuncName(funcId, func));
+            instructions.add(new Store(virtualMethodTable, offset, funcId));
+            offset += 4;
+        }
+        instructions.add(new Store(objectPointer, 0, virtualMethodTable));
+
+        // Set exprType so if it's part of a w_k.foo()
+        // we know which function to call.
+        exprType = classType;
+
+        return instructions;
+    }
+
+    @Override
+    public List visit(MessageSend n) {
+        int myK = k;
+        Identifier output = new Identifier("w"+k);
+        k += 1;
+        PrimaryExpression expression = n.f0;
+        List<Instruction> instructions = expression.accept(this);
+
+        String funcName = n.f2.f0.tokenImage;
+        ObjectTable currentExpr = methodFieldTable.allObjects.get(exprType);
+        int counter = 0;
+        for (String func : currentExpr.methodTable){
+            if (func.endsWith(funcName)) {
+                break;
+            }
+            counter += 4;
         }
 
-        // Create fields
+        // load method table from expr
+        Identifier caller = new Identifier("w"+(myK+1));
+        k += 1;
+        Identifier functionVar = new Identifier("w"+k);
+        k += 1;
+        instructions.add(new Load(functionVar, caller, 0)); // load method table
+        instructions.add(new Load(functionVar, functionVar, counter)); // load function
 
-        //
+        // load parameters
+        List<Instruction> paramInstructions = n.f4.accept(this);
+        if (paramInstructions == null) {
+            expressionListTracker = new ArrayList<>();
+            expressionListTracker.add(caller);
+        } else {
+            instructions.addAll(paramInstructions);
+            expressionListTracker.add(0, caller);
+        }
+        instructions.add(new Call(output, functionVar, expressionListTracker));
+
+        return instructions;
     }
 
     @Override
@@ -370,7 +499,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     @Override
     public List visit(VarDeclaration n) {
         String varName = n.f1.f0.tokenImage;
-        localVars.add(n.f1);
+        localVars.add(n.f1.f0.tokenImage);
         List<Instruction> instructions = new ArrayList<>();
         Identifier sparrowVar = new Identifier(varName);
         instructions.add(new Move_Id_Integer(sparrowVar, 0));
@@ -587,17 +716,31 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         String varName = n.f0.tokenImage;
         List instructionList = new ArrayList();
 
-        if (localVars.contains(n)) {
+        if (localVars.contains(varName)) {
             Identifier identifier = new Identifier("w" + k);
             k += 1;
             Instruction initializeVar = new Move_Id_Id(identifier, new Identifier(varName));
             instructionList.add(initializeVar);
-        } else if (parameters.contains(n)) {
-            // it's a parameter
+        } else if (parameters.contains(varName)) {
+            Identifier identifier = new Identifier("w"+k);
+            k += 1;
+            Instruction initializeVar = new Move_Id_Id(identifier, new Identifier(varName));
+            instructionList.add(initializeVar);
         } else {
             // it's a field
         }
         return instructionList;
+    }
+
+    @Override
+    public List visit(ThisExpression n) {
+        int myK = k;
+        List<Instruction> instructions = new ArrayList<>();
+        Identifier thisId = new Identifier("this");
+        Identifier output = new Identifier("w"+myK);
+        k += 1;
+        instructions.add(new Move_Id_Id(output, thisId));
+        return instructions;
     }
 
     @Override
@@ -626,6 +769,33 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     }
 
     @Override
+    public List visit(ExpressionList n) {
+        int myK = k;
+        Expression firstExpression = n.f0;
+
+        List<Identifier> ids = new ArrayList<>();
+        Identifier firstExprId = new Identifier("w"+k);
+        ids.add(firstExprId);
+
+        List<Instruction> instructions = firstExpression.accept(this);
+
+        NodeListOptional restExpressions = n.f1;
+
+        if (restExpressions.present()) {
+            // get all instructions and ID's for the expressions
+            int count = 0;
+            for(Enumeration e = restExpressions.elements(); e.hasMoreElements(); ++count) {
+                int currK = k;
+                instructions.addAll(((Node)e.nextElement()).accept(this));
+                ids.add(new Identifier("w"+currK));
+            }
+        }
+
+        expressionListTracker = ids;
+        return instructions;
+    }
+
+    @Override
     public List visit(NodeListOptional n) {
         if (!n.present()) {
             return null;
@@ -634,7 +804,11 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
             int _count = 0;
 
             for(Enumeration e = n.elements(); e.hasMoreElements(); ++_count) {
-                _ret.addAll(((Node)e.nextElement()).accept(this));
+                List list = ((Node)e.nextElement()).accept(this);
+                if (list != null) {
+                    _ret.addAll(list);
+                }
+
             }
 
             return _ret;

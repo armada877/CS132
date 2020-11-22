@@ -10,8 +10,8 @@ import java.io.InputStream;
 public class J2S {
     public static void main(String[] args) {
         try {
-//            InputStream in = System.in;
-            InputStream in = new FileInputStream("testcases/hw3/TreeVisitor.java");
+            InputStream in = System.in;
+//            InputStream in = new FileInputStream("testcases/hw3/Factorial.java");
             new MiniJavaParser(in);
             Node root = MiniJavaParser.Goal();
 
@@ -28,8 +28,8 @@ public class J2S {
             System.out.println(program.toString());
         } catch (ParseException e) {
             System.out.println(e.toString());
-        } catch (FileNotFoundException e) {
-            System.out.println(e.toString());
+//        } catch (FileNotFoundException e) {
+//            System.out.println(e.toString());
         }
     }
 }

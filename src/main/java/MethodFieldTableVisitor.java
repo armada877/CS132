@@ -16,6 +16,11 @@ public class MethodFieldTableVisitor extends DepthFirstVisitor {
     }
 
     @Override
+    public void visit(MainClass n) {
+        return;
+    }
+
+    @Override
     public void visit(ClassDeclaration n) {
         currentObject = new ObjectTable();
         // Setup object table
