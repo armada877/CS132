@@ -256,12 +256,27 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     @Override
     public List visit(AssignmentStatement n) {
         int myK = k;
-        Identifier var = new Identifier(n.f0.f0.tokenImage);
+        String varName = n.f0.f0.tokenImage;
+        Identifier var = new Identifier(varName);
         Expression expression = n.f2;
         List<Instruction> instructions = expression.accept(this);
-        Instruction assignment = new Move_Id_Id(var, new Identifier("w"+myK));
 
-        instructions.add(assignment);
+        if (localVars.contains(varName) || parameters.contains(varName)) {
+            Instruction assignment = new Move_Id_Id(var, new Identifier("w" + myK));
+            instructions.add(assignment);
+        } else {
+            ObjectTable objectTable = methodFieldTable.allObjects.get(currentClass);
+            int offset = 4;
+            for (String field : objectTable.fields) {
+                if (field == varName) {
+                    break;
+                }
+                offset += 4;
+            }
+            Identifier thisId = new Identifier("this");
+            instructions.add(new Store(thisId, offset, new Identifier("w" + myK)));
+        }
+
         return instructions;
     }
 
@@ -272,13 +287,16 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         Expression indexExpression = n.f2;
         Expression valueExpression = n.f5;
 
-        List<Instruction> instructions = indexExpression.accept(this);
+        List<Instruction> instructions = n.f0.accept(this);
         int secondK = k;
+        List<Instruction> indexInstructions = indexExpression.accept(this);
+        int thirdK = k;
+        instructions.addAll(indexInstructions);
         List<Instruction> valueInstructions = valueExpression.accept(this);
 
-        Identifier array = new Identifier(n.f0.f0.tokenImage);
-        Identifier arrIndex = new Identifier("w"+myK);
-        Identifier value = new Identifier("w"+secondK);
+        Identifier array = new Identifier("w"+myK);
+        Identifier arrIndex = new Identifier("w"+secondK);
+        Identifier value = new Identifier("w"+thirdK);
         Identifier arrLength = new Identifier("w" + k);
         k += 1;
         Identifier arrPointer = new Identifier("w"+k);
@@ -701,9 +719,9 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
         List<Instruction> instructions = expression.accept(this);
         Identifier conditional = new Identifier("w"+myK);
-        Label condFalse = new Label("l_else"+myK);
+        Label condFalse = new Label("l_else"+k);
         k += 1;
-        Label end = new Label("l_end"+myK);
+        Label end = new Label("l_end"+k);
         k += 1;
 
         instructions.add(new IfGoto(conditional, condFalse)); // if0 statement
@@ -761,6 +779,15 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
             instructionList.add(initializeVar);
         } else {
             // it's a field
+            List<String> fields = methodFieldTable.allObjects.get(currentClass).fields;
+
+            int offset  = fields.indexOf(varName);
+            offset = 4 * (offset + 1);
+            Identifier identifier = new Identifier("w"+k);
+            k += 1;
+
+            Identifier thisId = new Identifier("this");
+            instructionList.add(new Load(identifier, thisId, offset));
         }
         return instructionList;
     }
@@ -832,6 +859,11 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
         expressionListTracker = ids;
         return instructions;
+    }
+
+    @Override
+    public List visit(ExpressionRest n) {
+        return n.f1.accept(this);
     }
 
     @Override

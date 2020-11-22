@@ -11,7 +11,7 @@ public class J2S {
     public static void main(String[] args) {
         try {
             InputStream in = System.in;
-//            InputStream in = new FileInputStream("testcases/hw3/Factorial.java");
+//            InputStream in = new FileInputStream("testcases/hw3/QuickSort.java");
             new MiniJavaParser(in);
             Node root = MiniJavaParser.Goal();
 
