@@ -6,15 +6,14 @@ import cs132.IR.token.Label;
 import cs132.minijava.syntaxtree.*;
 import cs132.minijava.visitor.GJNoArguDepthFirst;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 
 public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     private int k;
     public ArrayList<String> parameters;
     public ArrayList<String> localVars;
     public ArrayList<FunctionDecl> functionDecls;
+    public Map<String, String> varTypes;
 
     public MethodFieldTable methodFieldTable;
 
@@ -28,6 +27,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         k = 0;
         functionDecls = new ArrayList<>();
         methodFieldTable = m;
+        varTypes = new HashMap<>();
     }
 
     @Override
@@ -73,6 +73,15 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
     }
 
     @Override
+    public List visit(ClassExtendsDeclaration n) {
+        currentClass = n.f1.f0.tokenImage;
+
+        n.f6.accept(this);
+
+        return null;
+    }
+
+    @Override
     public List visit(FormalParameterList n) {
         List<Identifier> params = new ArrayList<>();
         Identifier firstParam = new Identifier(n.f0.f1.f0.tokenImage);
@@ -101,6 +110,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
     @Override
     public List visit(MethodDeclaration n) {
+        varTypes = new HashMap<>();
         localVars = new ArrayList<>();
         parameters = new ArrayList<>();
         k = 0;
@@ -190,6 +200,8 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
 
     @Override
     public List visit(MessageSend n) {
+        exprType = "";
+
         int myK = k;
         Identifier output = new Identifier("w"+k);
         k += 1;
@@ -199,18 +211,30 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         String funcName = n.f2.f0.tokenImage;
         ObjectTable currentExpr = methodFieldTable.allObjects.get(exprType);
         int counter = 0;
-        for (String func : currentExpr.methodTable){
-            if (func.endsWith(funcName)) {
-                break;
+        if (currentExpr != null) {
+            for (String func : currentExpr.methodTable){
+                if (func.endsWith(funcName)) {
+                    break;
+                }
+                counter += 4;
             }
-            counter += 4;
         }
 
         // load method table from expr
         Identifier caller = new Identifier("w"+(myK+1));
-        k += 1;
         Identifier functionVar = new Identifier("w"+k);
         k += 1;
+        Label nullLabel = new Label("l_null"+k);
+        k += 1;
+        Label endNullLabel = new Label(("end_null"+k));
+        k += 1;
+
+        instructions.add(new IfGoto(caller, nullLabel));
+        instructions.add(new Goto(endNullLabel));
+        instructions.add(new LabelInstr(nullLabel));
+        instructions.add(new ErrorMessage("\"null pointer\""));
+        instructions.add(new LabelInstr(endNullLabel));
+
         instructions.add(new Load(functionVar, caller, 0)); // load method table
         instructions.add(new Load(functionVar, functionVar, counter)); // load function
 
@@ -224,6 +248,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
             expressionListTracker.add(0, caller);
         }
         instructions.add(new Call(output, functionVar, expressionListTracker));
+
 
         return instructions;
     }
@@ -503,6 +528,12 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         List<Instruction> instructions = new ArrayList<>();
         Identifier sparrowVar = new Identifier(varName);
         instructions.add(new Move_Id_Integer(sparrowVar, 0));
+
+        if (n.f0.f0.which == 3) {
+            String type = ((cs132.minijava.syntaxtree.Identifier) n.f0.f0.choice).f0.tokenImage;
+            varTypes.put(varName, type);
+        }
+
         return instructions;
     }
 
@@ -717,6 +748,8 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         List instructionList = new ArrayList();
 
         if (localVars.contains(varName)) {
+            if (varTypes.containsKey(varName))
+                exprType = varTypes.get(varName);
             Identifier identifier = new Identifier("w" + k);
             k += 1;
             Instruction initializeVar = new Move_Id_Id(identifier, new Identifier(varName));
@@ -740,6 +773,7 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
         Identifier output = new Identifier("w"+myK);
         k += 1;
         instructions.add(new Move_Id_Id(output, thisId));
+        exprType = currentClass;
         return instructions;
     }
 
@@ -786,8 +820,13 @@ public class TranslateVisitor extends GJNoArguDepthFirst<List> {
             int count = 0;
             for(Enumeration e = restExpressions.elements(); e.hasMoreElements(); ++count) {
                 int currK = k;
-                instructions.addAll(((Node)e.nextElement()).accept(this));
+                List list = ((Node)e.nextElement()).accept(this);
+                if (list != null) {
+                    instructions.addAll(list);
+                }
                 ids.add(new Identifier("w"+currK));
+//                instructions.addAll(((Node)e.nextElement()).accept(this));
+//                ids.add(new Identifier("w"+currK));
             }
         }
 

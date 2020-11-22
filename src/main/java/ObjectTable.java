@@ -1,5 +1,3 @@
-import Typecheck.Pair;
-
 import java.util.ArrayList;
 
 public class ObjectTable {
