@@ -1,3 +1,5 @@
+package JavaToSparrow;
+
 import cs132.IR.sparrow.*;
 import cs132.IR.sparrow.Block;
 import cs132.IR.token.FunctionName;

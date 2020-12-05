@@ -1,4 +1,4 @@
-import Typecheck.Pair;
+package JavaToSparrow;
 
 import java.util.ArrayList;
 import java.util.HashMap;

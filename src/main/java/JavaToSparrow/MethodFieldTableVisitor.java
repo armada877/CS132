@@ -1,11 +1,7 @@
-import Typecheck.Pair;
-import Typecheck.TypeContainer;
+package JavaToSparrow;
+
 import cs132.minijava.syntaxtree.*;
 import cs132.minijava.visitor.DepthFirstVisitor;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
 public class MethodFieldTableVisitor extends DepthFirstVisitor {
     ObjectTable currentObject;
