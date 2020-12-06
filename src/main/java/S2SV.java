@@ -23,7 +23,10 @@ public class S2SV {
             LivenessVisitor livenessVisitor = new LivenessVisitor();
             program.accept(livenessVisitor);
             LinearScanRegisterAllocator linearScanRegisterAllocator = new LinearScanRegisterAllocator(livenessVisitor.liveness);
-            System.out.println("oof");
+            TranslateVisitor translateVisitor = new TranslateVisitor(linearScanRegisterAllocator, livenessVisitor);
+            program.accept(translateVisitor);
+            cs132.IR.sparrowv.Program program1 = new cs132.IR.sparrowv.Program(translateVisitor.functionDecls);
+            System.out.println(program1.toString());
         } catch (ParseException e) {
             System.out.println(e.toString());
         } catch (FileNotFoundException e) {

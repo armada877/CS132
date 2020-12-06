@@ -240,6 +240,7 @@ public class LivenessVisitor implements Visitor {
         // TODO
         String funcName = call.parent.parent.functionName.name;
         String assignId = call.lhs.toString();
+        String callee = call.callee.toString();
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
@@ -250,5 +251,8 @@ public class LivenessVisitor implements Visitor {
             Pair<Integer, Integer> paramLive = liveness.get(funcName).get(param.toString());
             liveness.get(funcName).put(param.toString(), new Pair<>(paramLive.fst, line));
         }
+
+        Pair<Integer, Integer> calleeLive = liveness.get(funcName).get(callee);
+        liveness.get(funcName).put(callee, new Pair<>(calleeLive.fst, line));
     }
 }
