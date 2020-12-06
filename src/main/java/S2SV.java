@@ -14,7 +14,7 @@ public class S2SV {
         Registers.SetRiscVregs();
         try {
 //            InputStream in = System.in;
-            InputStream in = new FileInputStream("testcases/hw4/Factorial.sparrow");
+            InputStream in = new FileInputStream("testcases/hw4/strech.sparrow");
             SparrowParser sparrowParser = new SparrowParser(in);
             Node root = sparrowParser.Program();
             SparrowConstructor sparrowConstructor = new SparrowConstructor();
@@ -22,7 +22,7 @@ public class S2SV {
             Program program = sparrowConstructor.getProgram();
             LivenessVisitor livenessVisitor = new LivenessVisitor();
             program.accept(livenessVisitor);
-
+            LinearScanRegisterAllocator linearScanRegisterAllocator = new LinearScanRegisterAllocator(livenessVisitor.liveness);
             System.out.println("oof");
         } catch (ParseException e) {
             System.out.println(e.toString());

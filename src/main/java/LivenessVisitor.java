@@ -9,10 +9,12 @@ import java.util.Map;
 
 public class LivenessVisitor implements Visitor {
     public Map<String, Map<String, Pair<Integer, Integer>>> liveness;
+    public Map<String, Map<String, Pair<Integer, Integer>>> paramLiveness;
     private int line;
 
     public LivenessVisitor() {
         liveness = new HashMap<>();
+        paramLiveness = new HashMap<>();
     }
 
     @Override
@@ -26,8 +28,11 @@ public class LivenessVisitor implements Visitor {
     public void visit(FunctionDecl functionDecl) {
         line = 0;
         liveness.put(functionDecl.functionName.name, new HashMap<>());
+        int numParams = functionDecl.formalParameters.size();
+        numParams = numParams * -1;
         for (Identifier identifier : functionDecl.formalParameters) {
-            liveness.get(functionDecl.functionName.toString()).put(identifier.toString(), new Pair<>(line, line));
+            liveness.get(functionDecl.functionName.toString()).put(identifier.toString(), new Pair<>(numParams, line));
+            numParams++;
         }
         line += 1;
         functionDecl.block.accept(this);
