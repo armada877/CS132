@@ -3,18 +3,20 @@ import cs132.IR.sparrow.*;
 import cs132.IR.sparrow.visitor.Visitor;
 import cs132.IR.token.Identifier;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class LivenessVisitor implements Visitor {
     public Map<String, Map<String, Pair<Integer, Integer>>> liveness;
     public Map<String, Map<String, Pair<Integer, Integer>>> paramLiveness;
+    public Map<String, Set<String>> labelVars;
+    public List<String> activeLabels;
     private int line;
 
     public LivenessVisitor() {
         liveness = new HashMap<>();
         paramLiveness = new HashMap<>();
+        activeLabels = new ArrayList<>();
+        labelVars = new HashMap<>();
     }
 
     @Override
@@ -27,6 +29,8 @@ public class LivenessVisitor implements Visitor {
     @Override
     public void visit(FunctionDecl functionDecl) {
         line = 0;
+        labelVars = new HashMap<>();
+        activeLabels = new ArrayList<>();
         liveness.put(functionDecl.functionName.name, new HashMap<>());
         int numParams = functionDecl.formalParameters.size();
         numParams = numParams * -1;
@@ -54,12 +58,16 @@ public class LivenessVisitor implements Visitor {
     @Override
     public void visit(LabelInstr labelInstr) {
         // TODO
+        activeLabels.add(labelInstr.label.toString());
+        labelVars.put(labelInstr.label.toString(), new TreeSet<>());
     }
 
     @Override
     public void visit(Move_Id_Integer move_id_integer) {
         String funcName = move_id_integer.parent.parent.functionName.name;
         String assignId = move_id_integer.lhs.toString();
+
+        addVarToLabels(assignId);
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
@@ -70,6 +78,8 @@ public class LivenessVisitor implements Visitor {
     public void visit(Move_Id_FuncName move_id_funcName) {
         String funcName = move_id_funcName.parent.parent.functionName.name;
         String assignId = move_id_funcName.lhs.toString();
+
+        addVarToLabels(assignId);
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
@@ -84,6 +94,10 @@ public class LivenessVisitor implements Visitor {
         String arg2 = add.arg2.toString();
         Pair<Integer, Integer> arg1Live = liveness.get(funcName).get(arg1);
         Pair<Integer, Integer> arg2Live = liveness.get(funcName).get(arg2);
+
+        addVarToLabels(assignId);
+        addVarToLabels(arg1);
+        addVarToLabels(arg2);
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
@@ -104,6 +118,10 @@ public class LivenessVisitor implements Visitor {
         Pair<Integer, Integer> arg1Live = liveness.get(funcName).get(arg1);
         Pair<Integer, Integer> arg2Live = liveness.get(funcName).get(arg2);
 
+        addVarToLabels(assignId);
+        addVarToLabels(arg1);
+        addVarToLabels(arg2);
+
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
         }
@@ -121,6 +139,10 @@ public class LivenessVisitor implements Visitor {
         String arg2 = multiply.arg2.toString();
         Pair<Integer, Integer> arg1Live = liveness.get(funcName).get(arg1);
         Pair<Integer, Integer> arg2Live = liveness.get(funcName).get(arg2);
+
+        addVarToLabels(assignId);
+        addVarToLabels(arg1);
+        addVarToLabels(arg2);
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line + 1));
@@ -140,6 +162,10 @@ public class LivenessVisitor implements Visitor {
         Pair<Integer, Integer> arg1Live = liveness.get(funcName).get(arg1);
         Pair<Integer, Integer> arg2Live = liveness.get(funcName).get(arg2);
 
+        addVarToLabels(assignId);
+        addVarToLabels(arg1);
+        addVarToLabels(arg2);
+
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
         }
@@ -155,6 +181,9 @@ public class LivenessVisitor implements Visitor {
         String assignId = load.lhs.toString();
         String base = load.base.toString();
         Pair<Integer, Integer> baseLive = liveness.get(funcName).get(base);
+
+        addVarToLabels(assignId);
+        addVarToLabels(base);
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
@@ -172,6 +201,9 @@ public class LivenessVisitor implements Visitor {
         Pair<Integer, Integer> baseLive = liveness.get(funcName).get(base);
         Pair<Integer, Integer> rhsLive = liveness.get(funcName).get(rhs);
 
+        addVarToLabels(base);
+        addVarToLabels(rhs);
+
         liveness.get(funcName).put(base, new Pair<>(baseLive.fst, line));
         liveness.get(funcName).put(rhs, new Pair<>(rhsLive.fst, line));
     }
@@ -182,6 +214,9 @@ public class LivenessVisitor implements Visitor {
         String assignId = move_id_id.lhs.toString();
         String rhs = move_id_id.rhs.toString();
         Pair<Integer, Integer> rhsLive = liveness.get(funcName).get(rhs);
+
+        addVarToLabels(assignId);
+        addVarToLabels(rhs);
 
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
@@ -198,6 +233,9 @@ public class LivenessVisitor implements Visitor {
         String size = alloc.size.toString();
         Pair<Integer, Integer> sizeLive = liveness.get(funcName).get(size);
 
+        addVarToLabels(assignId);
+        addVarToLabels(size);
+
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
         }
@@ -212,6 +250,8 @@ public class LivenessVisitor implements Visitor {
         String content = print.content.toString();
         Pair<Integer, Integer> contentLive = liveness.get(funcName).get(content);
 
+        addVarToLabels(content);
+
         liveness.get(funcName).put(content, new Pair<>(contentLive.fst, line));
     }
 
@@ -223,6 +263,17 @@ public class LivenessVisitor implements Visitor {
     @Override
     public void visit(Goto aGoto) {
         // TODO
+        String funcName = aGoto.parent.parent.functionName.name;
+        String label = aGoto.label.toString();
+        activeLabels.remove(label);
+
+        if (labelVars.containsKey(label)) {
+            for (String var : labelVars.get(label)) {
+                Pair<Integer, Integer> varLive = liveness.get(funcName).get(var);
+
+                liveness.get(funcName).put(var, new Pair<>(varLive.fst, line));
+            }
+        }
     }
 
     @Override
@@ -231,6 +282,8 @@ public class LivenessVisitor implements Visitor {
         String funcName = ifGoto.parent.parent.functionName.name;
         String condition = ifGoto.condition.toString();
         Pair<Integer, Integer> conditionLive = liveness.get(funcName).get(condition);
+
+        addVarToLabels(condition);
 
         liveness.get(funcName).put(condition, new Pair<>(conditionLive.fst, line));
     }
@@ -242,6 +295,9 @@ public class LivenessVisitor implements Visitor {
         String assignId = call.lhs.toString();
         String callee = call.callee.toString();
 
+        addVarToLabels(assignId);
+        addVarToLabels(callee);
+
         if (!liveness.get(funcName).containsKey(assignId)){
             liveness.get(funcName).put(assignId, new Pair<>(line, line));
         }
@@ -250,9 +306,16 @@ public class LivenessVisitor implements Visitor {
         for (Identifier param : params) {
             Pair<Integer, Integer> paramLive = liveness.get(funcName).get(param.toString());
             liveness.get(funcName).put(param.toString(), new Pair<>(paramLive.fst, line));
+            addVarToLabels(param.toString());
         }
 
         Pair<Integer, Integer> calleeLive = liveness.get(funcName).get(callee);
         liveness.get(funcName).put(callee, new Pair<>(calleeLive.fst, line));
+    }
+
+    private void addVarToLabels(String var) {
+        for (String label : activeLabels) {
+            labelVars.get(label).add(var);
+        }
     }
 }

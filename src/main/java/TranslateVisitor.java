@@ -367,7 +367,7 @@ public class TranslateVisitor implements Visitor {
         Map<String, Pair<Integer, Integer>> currentLiveTable = livenessVisitor.liveness.get(call.parent.parent.functionName.toString());
         List<String> saveVars = new ArrayList();
         for (Map.Entry<String, Pair<Integer, Integer>> varEntry : currentLiveTable.entrySet()) {
-            if (varEntry.getValue().fst < line && varEntry.getValue().snd > line) {
+            if (varEntry.getValue().fst < line && varEntry.getValue().snd > line && varEntry.getKey() != call.lhs.toString()) {
                 saveVars.add(varEntry.getKey());
             }
         }

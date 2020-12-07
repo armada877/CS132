@@ -13,8 +13,8 @@ public class S2SV {
     public static void main(String[] args) {
         Registers.SetRiscVregs();
         try {
-//            InputStream in = System.in;
-            InputStream in = new FileInputStream("testcases/hw4/strech.sparrow");
+            InputStream in = System.in;
+//            InputStream in = new FileInputStream("testcases/hw4/strech.sparrow");
             SparrowParser sparrowParser = new SparrowParser(in);
             Node root = sparrowParser.Program();
             SparrowConstructor sparrowConstructor = new SparrowConstructor();
@@ -29,8 +29,8 @@ public class S2SV {
             System.out.println(program1.toString());
         } catch (ParseException e) {
             System.out.println(e.toString());
-        } catch (FileNotFoundException e) {
-            System.out.println(e.toString());
+//        } catch (FileNotFoundException e) {
+//            System.out.println(e.toString());
         }
     }
 }
