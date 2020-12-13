@@ -1,3 +1,5 @@
+package S2V;
+
 import cs132.IR.ParseException;
 import cs132.IR.SparrowParser;
 import cs132.IR.registers.Registers;
@@ -5,8 +7,6 @@ import cs132.IR.sparrow.Program;
 import cs132.IR.syntaxtree.Node;
 import cs132.IR.visitor.SparrowConstructor;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 
 public class S2SV {
