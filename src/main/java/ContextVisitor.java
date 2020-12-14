@@ -26,10 +26,9 @@ public class ContextVisitor implements Visitor {
         currentFunc = functionDecl.functionName.name;
         stackRef.put(currentFunc, new HashMap<>());
         cStackRef = stackRef.get(currentFunc);
-        sp = -4;
+        sp = -12;
 
         List<Identifier> params = new ArrayList(functionDecl.formalParameters);
-        Collections.reverse(params);
         int c = 0;
 
         for (Identifier param : params) {

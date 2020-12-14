@@ -13,8 +13,8 @@ public class SV2V {
     public static void main(String[] args) {
         Registers.SetRiscVregs();
         try {
-//            InputStream in = System.in;
-            InputStream in = new FileInputStream("testcases/hw5/factorial5.sparrow-v");
+            InputStream in = System.in;
+//            InputStream in = new FileInputStream("testcases/hw5/stretch5.sparrow-v");
             SparrowParser sparrowParser = new SparrowParser(in);
             Node root = sparrowParser.Program();
             SparrowVConstructor sparrowConstructor = new SparrowVConstructor();
@@ -22,11 +22,15 @@ public class SV2V {
             Program program = sparrowConstructor.getProgram();
             ContextVisitor contextVisitor = new ContextVisitor();
             program.accept(contextVisitor);
-            System.out.println("oof");
+            TranslateVisitor translateVisitor = new TranslateVisitor(contextVisitor.stackRef);
+            program.accept(translateVisitor);
+            for (String l : translateVisitor.program){
+                System.out.println(l);
+            }
         } catch (ParseException e) {
             System.out.println(e.toString());
-        } catch (FileNotFoundException e) {
-            System.out.println(e.toString());
+//        } catch (FileNotFoundException e) {
+//            System.out.println(e.toString());
         }
     }
 }
